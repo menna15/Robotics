@@ -1,0 +1,5 @@
+robotics_scripts
+/home/menna/Desktop/catkin_ws/catkin_ws/devel/.private/robotics_scripts/cmake.lock /home/menna/Desktop/catkin_ws/catkin_ws/devel/./cmake.lock
+/home/menna/Desktop/catkin_ws/catkin_ws/devel/.private/robotics_scripts/share/robotics_scripts/cmake/robotics_scriptsConfig-version.cmake /home/menna/Desktop/catkin_ws/catkin_ws/devel/share/robotics_scripts/cmake/robotics_scriptsConfig-version.cmake
+/home/menna/Desktop/catkin_ws/catkin_ws/devel/.private/robotics_scripts/share/robotics_scripts/cmake/robotics_scriptsConfig.cmake /home/menna/Desktop/catkin_ws/catkin_ws/devel/share/robotics_scripts/cmake/robotics_scriptsConfig.cmake
+/home/menna/Desktop/catkin_ws/catkin_ws/devel/.private/robotics_scripts/lib/pkgconfig/robotics_scripts.pc /home/menna/Desktop/catkin_ws/catkin_ws/devel/lib/pkgconfig/robotics_scripts.pc
