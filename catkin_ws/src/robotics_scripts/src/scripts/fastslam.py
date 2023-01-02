@@ -28,7 +28,7 @@ def l2p(l):
 
 class grid:
 
-    def __init__(self,center_x, center_y, grid_size_x, grid_size_y, grid_resolution, min_angle,max_angle, laser_resolution, range_max, p_occ, p_free,p_prior,particles):
+    def __init__(self,center_x, center_y, grid_size_x, grid_size_y, grid_resolution, min_angle,max_angle, laser_resolution, range_max, range_min, p_occ, p_free,p_prior,particles):
         """
         (center_x , center_y)      : the center of the map grid [in meters].
         (grid_width , grid_height) : size of the map [in meters].
@@ -51,7 +51,8 @@ class grid:
         self.laser_min_angle = min_angle    
         self.laser_max_angle = max_angle    
         self.laser_resolution = laser_resolution  
-        self.laser_max_range= range_max      
+        self.laser_max_range= range_max   
+        self.laser_min_range= range_min    
         self.sensor_model_l_occ = p2l(p_occ)
         self.sensor_model_l_free = p2l(p_free)
         self.sensor_model_l_prior = p2l(p_prior)
@@ -111,9 +112,7 @@ class grid:
 
         output : updated grid cells.
         """
-        if np.isinf(distance) and np.sign(distance) == +1:
-            distance = self.laser_max_range
-        elif np.isinf(distance) or np.isnan(distance):
+        if distance < self.laser_min_range or distance > self.laser_max_range or np.isinf(distance) or np.isnan(distance):
             return
         
         # get the object position (x,y) in meters
@@ -125,8 +124,8 @@ class grid:
         object_i, object_j = self.to_cell(object_x, object_y)  # cell holding the object
 
         num_cells = distance / self.grid_resolution
-
         ip, jp = self.bresenham(robot_i, robot_j, object_i, object_j, num_cells,index)
+
         if self.is_inside(int(ip),int(jp),index) and self.grid[index][int(ip),int(jp)]>= self.sensor_model_l_occ:
             self.hit_miss[index] +=1
         if not np.isnan(distance) and distance != self.laser_max_range and self.is_inside(int(ip),int(jp),index):
@@ -150,18 +149,19 @@ class grid:
                     
         output : updated grid cells that line passes through.
         """
+
         points = list(bresenham(int(j0),int(i0),int(j1),int(i1)))
+
         length = len(points)
         for i in range(length - 1):
-            jp = points[i][0]
-            ip = points[i][1]
-            if (jp == j1 and ip == i1) or (np.sqrt((jp-j0)**2+(ip-i0)**2) >= steps) or not self.is_inside(ip, jp):
+            jp = int(points[i][0])
+            ip = int(points[i][1])
+            if (jp == j1 and ip == i1) or (np.sqrt((jp-j0)**2+(ip-i0)**2) >= steps) or not self.is_inside(ip, jp,index):
                 return ip, jp
-            elif self.grid[int(ip),int(jp)] >= 2 * self.sensor_model_l_occ:
+            elif self.grid[index][int(ip),int(jp)] >= 2 * self.sensor_model_l_occ:
                 return ip, jp
-            # self.hit_miss[int(ip),int(jp)] +=1
-            # if self.hit_miss[int(ip),int(jp)] >= 7:
-            self.grid[int(ip),int(jp)] += self.sensor_model_l_free - self.sensor_model_l_prior
+
+            self.grid[index][int(ip),int(jp)] += self.sensor_model_l_free - self.sensor_model_l_prior
         return points[length-1][1],points[length-1][0]
 
     def update(self, x, y, robot_thetas, scan):
@@ -188,8 +188,10 @@ class grid:
             count +=1
             for i in range(self.particles):
                 theta = robot_thetas[i] + self.laser_min_angle + angle * self.laser_resolution
+                # theta = self.laser_min_angle + angle * self.laser_resolution
+
                 self.ray_casting(x[i], y[i], theta, distance,i)
-        
+
         # calculate probability = no_hits(laser says that at i,j there is an object and the cell i,j in the grid hold occupied value) / all_readings
         self.hit_miss = [e/count for e in self.hit_miss]
         # the particle with highest probability (hits) is the more likely to be the real robot pose.
@@ -203,7 +205,6 @@ class grid:
         thetas = []
         for i in particles_prob:
             index = next(x for x, val in enumerate(self.hit_miss) if val >= i)
-            # print(index)
             list_x.append(x[index])
             list_y.append(y[index])
             thetas.append(robot_thetas[index])
@@ -245,7 +246,7 @@ class fastSlam:
         self.map_resolution       = rospy.get_param('~map_resolution', 0.08)
         self.map_publish_freq     = rospy.get_param('~map_publish_freq', 1.0)
         self.update_movement      = rospy.get_param('~update_movement', 0.08)
-        self.particles            = rospy.get_param('~particles', 1)
+        self.particles            = rospy.get_param('~particles', 5)
 
         # initialize occupancy grid message for the map
         self.map_msg = OccupancyGrid()
@@ -258,10 +259,10 @@ class fastSlam:
         
         # Publishers and Subscribers
         self.laser_subscriber = rospy.Subscriber("/laser_odom", custom_msg, self.call_back, queue_size=1)
-        self.map_publisher = rospy.Publisher('/fastslam', OccupancyGrid, queue_size=2)
+        self.map_publisher = rospy.Publisher('/fastslam', OccupancyGrid, queue_size=1)
 
-    def initialize_grid(self, min_angle, max_angle,max_range, laser_resolution):
-        self.gridmapping = grid(self.map_center_x, self.map_center_y, self.map_size_x, self.map_size_y, self.map_resolution, min_angle, max_angle, laser_resolution,max_range, self.sensor_model_p_occ, self.sensor_model_p_free, self.sensor_model_p_prior,self.particles)
+    def initialize_grid(self, min_angle, max_angle,max_range,min_range, laser_resolution):
+        self.gridmapping = grid(self.map_center_x, self.map_center_y, self.map_size_x, self.map_size_y, self.map_resolution, min_angle, max_angle, laser_resolution,max_range,min_range, self.sensor_model_p_occ, self.sensor_model_p_free, self.sensor_model_p_prior,self.particles)
         self.initialized = True
 
     def to_yaw(self, qx, qy, qz, qw):
@@ -294,7 +295,7 @@ class fastSlam:
         data[mask] = -1  
         # Publish occupancy grid map
         self.map_msg.data = data
-        self.map_msg.header.frame_id = 'robot_map'
+        self.map_msg.header.frame_id = self.map_frame
         self.map_msg.header.stamp = header_stamp
         self.map_publisher.publish(self.map_msg)
         rospy.loginfo_once("Published map!")
@@ -308,7 +309,7 @@ class fastSlam:
         y_list = []
 
         if not self.initialized:
-            self.initialize_grid(laser.angle_min, laser.angle_max, laser.range_max, laser.angle_increment)
+            self.initialize_grid(laser.angle_min, laser.angle_max, laser.range_max,laser.range_min, laser.angle_increment)
 
         now = rospy.Time(0)
         try:
@@ -361,7 +362,6 @@ class fastSlam:
                 y_list.append(self.prev_robot_y[i] +error_y[i] + delta_y)
                 thetas.append(self.prev_robot_theta[i]+ delta_yaw)
 
-
             
             self.x_old  = x
             self.y_old  = y
@@ -372,20 +372,22 @@ class fastSlam:
 
 
             # update the map if the robot moved > specifc value 
-            # movement = (x- self.prev_robot_x)**2 + (y-self.prev_robot_y)**2
+            # movement = (x- self.x_old)**2 + (y-self.y_old)**2
+            # print(movement)
             # if ( movement >= self.update_movement**2 ):
-            
+
             x_list,y_list,thetas,gridmap = self.gridmapping.update(x_list, y_list, thetas, laser.ranges)
 
-            #correction 
-            self.prev_robot_x = x_list
-            self.prev_robot_y = y_list
-            self.prev_robot_theta = thetas
 
             # publish map (with the specified frequency)
             if (self.map_last_publish.to_sec() + 1.0/self.map_publish_freq < rospy.Time.now().to_sec() ):
                 self.map_last_publish = rospy.Time.now()
                 self.publish_occupancygrid(gridmap, now)
+            
+            #correction 
+            self.prev_robot_x = x_list
+            self.prev_robot_y = y_list
+            self.prev_robot_theta = thetas
 
         except Exception as e:
             rospy.logerr(e)

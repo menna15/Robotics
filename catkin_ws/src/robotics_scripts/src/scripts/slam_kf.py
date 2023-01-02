@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 import numpy as np
 import rospy
-import time
 import math
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import OccupancyGrid
-import tf
 from robotics_project.msg import custom_msg
 from bresenham import bresenham
 
@@ -236,7 +234,7 @@ class slam_kf:
         
         # Publishers and Subscribers
         self.laser_subscriber = rospy.Subscriber("/laser_odom", custom_msg, self.call_back, queue_size=1)
-        self.map_publisher = rospy.Publisher('/slam_ekf', OccupancyGrid, queue_size=1)
+        self.map_publisher = rospy.Publisher('/slam_kf', OccupancyGrid, queue_size=1)
 
     def initialize_grid(self, min_angle, max_angle,max_range,min_range, laser_resolution):
         self.gridmapping = grid(self.map_center_x, self.map_center_y, self.map_size_x, self.map_size_y, self.map_resolution, min_angle, max_angle, laser_resolution,max_range,min_range, self.sensor_model_p_occ, self.sensor_model_p_free, self.sensor_model_p_prior)

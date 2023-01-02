@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 import numpy as np
 import rospy
-import time
-import math
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import OccupancyGrid
 import tf
@@ -318,7 +316,7 @@ class mapping:
                 self.publish_occupancygrid(gridmap, now)
 
         except Exception as e:
-            rospy.logerr(e)
+            # rospy.logerr(e)
             pass
 
 
